@@ -7,6 +7,8 @@
 #include "dlib/geometry.h"
 #include "dlib/data_io/load_image_dataset.h"
 #include "dlib/image_processing.h"
+#include "print.h"
+
 
 using namespace std;
 
@@ -14,6 +16,8 @@ namespace dlib
 {
 
 // ----------------------------------------------------------------------------------------
+
+    boost::iostreams::stream_buffer<pysys_stdout_sink> pysys_stdout;
 
     struct shape_predictor_training_options
     {
@@ -97,8 +101,12 @@ namespace dlib
         trainer.set_lambda(options.lambda_param);
         trainer.set_num_test_splits(options.num_test_splits);
 
+        shape_predictor predictor;
         if (options.be_verbose)
         {
+            std::streambuf* old_buffer = std::cout.rdbuf(&pysys_stdout);
+            std::cout.rdbuf()->pubsetbuf(0, 0);
+
             std::cout << "Training with cascade depth: " << options.cascade_depth << std::endl;
             std::cout << "Training with tree depth: " << options.tree_depth << std::endl;
             std::cout << "Training with " << options.num_trees_per_cascade_level << " trees per cascade level."<< std::endl;
@@ -110,9 +118,14 @@ namespace dlib
             std::cout << "Training with lambda_param: " << options.lambda_param << std::endl;
             std::cout << "Training with " << options.num_test_splits << " split tests."<< std::endl;
             trainer.be_verbose();
-        }
 
-        shape_predictor predictor = trainer.train(images, detections);
+            predictor = trainer.train(images, detections);
+
+            // Restore original stdout
+            std::cout.rdbuf(old_buffer);
+        } else {
+            predictor = trainer.train(images, detections);
+        }
 
         return predictor;
     }
